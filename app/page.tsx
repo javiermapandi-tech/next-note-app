@@ -1,69 +1,217 @@
-import Image from "next/image";
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { NoteItem, Note } from '@/components/NoteItem';
 
 export default function Home() {
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isDuplicate, setIsDuplicate] = useState(false);
+
+  useEffect(() => {
+    const savedNotes = localStorage.getItem('nextjs_notes');
+    if (savedNotes) {
+      try {
+        setNotes(JSON.parse(savedNotes));
+      } catch (e) {
+        console.error('Failed to parse saved notes', e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('nextjs_notes', JSON.stringify(notes));
+  }, [notes]);
+
+  useEffect(() => {
+    if (!title.trim()) {
+      setIsDuplicate(false);
+      return;
+    }
+
+    const duplicateExists = notes.some(
+      (note) =>
+        note.title.trim().toLowerCase() === title.trim().toLowerCase() &&
+        note.id !== editingId
+    );
+
+    setIsDuplicate(duplicateExists);
+  }, [title, notes, editingId]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!title.trim() || !description.trim()) {
+      alert('Please enter both title and description.');
+      return;
+    }
+
+    if (isDuplicate) {
+      alert('A note with this title already exists!');
+      return;
+    }
+
+    if (editingId) {
+      setNotes((prevNotes) =>
+        prevNotes.map((note) =>
+          note.id === editingId
+            ? { ...note, title: title.trim(), description: description.trim() }
+            : note
+        )
+      );
+      setEditingId(null);
+    } else {
+      const newNote: Note = {
+        id: Date.now().toString(),
+        title: title.trim(),
+        description: description.trim(),
+        createdAt: new Date().toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      };
+      setNotes((prevNotes) => [newNote, ...prevNotes]);
+    }
+
+    setTitle('');
+    setDescription('');
+  };
+
+  const handleEdit = (note: Note) => {
+    setEditingId(note.id);
+    setTitle(note.title);
+    setDescription(note.description);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setTitle('');
+    setDescription('');
+  };
+
+  const handleDelete = (id: string) => {
+    if (confirm('Are you sure you want to delete this note?')) {
+      setNotes((prevNotes) => prevNotes.filter((note) => note.id !== id));
+      if (editingId === id) {
+        handleCancelEdit();
+      }
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <main className="min-h-screen bg-gray-50 py-10 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto space-y-8">
+        
+        <header className="text-center">
+          <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
+            📝 Next.js Note App
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="mt-2 text-sm text-gray-600">
+            Create, view, edit, and delete notes easily.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        </header>
+
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-800">
+              {editingId ? '✏️ Edit Note' : '➕ Add New Note'}
+            </h2>
+            {editingId && (
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="text-xs font-medium text-gray-500 hover:text-gray-700 underline"
+              >
+                Cancel Edit
+              </button>
+            )}
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+                Title
+              </label>
+              <input
+                id="title"
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Enter note title..."
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:outline-none transition-all ${
+                  isDuplicate
+                    ? 'border-red-500 focus:ring-red-200'
+                    : 'border-gray-300 focus:ring-blue-200 focus:border-blue-500'
+                }`}
+              />
+              {isDuplicate && (
+                <p className="text-xs text-red-500 mt-1 font-medium">
+                  ⚠️ Warning: A note with this title already exists!
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <textarea
+                id="description"
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Enter note description..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-500 focus:outline-none transition-all"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isDuplicate || !title.trim() || !description.trim()}
+              className={`w-full py-2.5 px-4 rounded-lg text-white font-medium shadow transition-colors ${
+                isDuplicate || !title.trim() || !description.trim()
+                  ? 'bg-gray-300 cursor-not-allowed'
+                  : editingId
+                  ? 'bg-amber-600 hover:bg-amber-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+            >
+              {editingId ? 'Update Note' : 'Add Note'}
+            </button>
+          </form>
+        </section>
+
+        <section>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-800">
+              📋 Your Notes ({notes.length})
+            </h2>
+          </div>
+
+          {notes.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-300">
+              <p className="text-gray-500 text-sm">No notes found. Add your first note above!</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {notes.map((note) => (
+                <NoteItem
+                  key={note.id}
+                  note={note}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+      </div>
+    </main>
   );
 }
